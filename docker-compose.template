@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    ports:
+      - 5440:5432
+    volumes:
+      - directus_boilerplate_db_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ['CMD', 'pg_isready', '--host=localhost', '--username=directus']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_interval: 5s
+      start_period: 30s
+
+  directus:
+    build:
+      context: ./directus-boilerplate
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+    ports:
+      - 8055:8055
+    volumes:
+      - ./directus-boilerplate/uploads:/directus/uploads
+      - ./directus-boilerplate/extensions:/directus/extensions
+    networks:
+      - backend
+      - frontend
+    environment:
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DB_CLIENT: ${DB_CLIENT}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      WEBSOCKETS_ENABLED: ${WEBSOCKETS_ENABLED}
+
+      PUBLIC_URL: ${PUBLIC_URL}
+
+      CORS_ENABLED: ${CORS_ENABLED}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+
+      REFRESH_TOKEN_COOKIE_SECURE: ${REFRESH_TOKEN_COOKIE_SECURE}
+      REFRESH_TOKEN_COOKIE_SAME_SITE: ${REFRESH_TOKEN_COOKIE_SAME_SITE}
+      REFRESH_TOKEN_DOMAIN: ${REFRESH_TOKEN_COOKIE_DOMAIN}
+
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+      SESSION_COOKIE_SAME_SITE: ${SESSION_COOKIE_SAME_SITE}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+
+      EXTENSIONS_PATH: ${EXTENSIONS_PATH}
+      EXTENSIONS_AUTO_RELOAD: ${EXTENSIONS_AUTO_RELOAD}
+
+      CONTENT_SECURITY_POLICY_DIRECTIVES__CHILD_SRC: ${CONTENT_SECURITY_POLICY_DIRECTIVES__CHILD_SRC}
+
+  nextjs-frontend:
+    build:
+      context: ./nextjs-boilerplate # Path to your Next.js project
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    networks:
+      - frontend
+    environment:
+      DIRECTUS_URL: ${DIRECTUS_URL} # Update this with your Directus instance URL
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN} # Replace with an actual token
+      DIRECTUS_ASSETS_PATH: ${DIRECTUS_ASSETS_PATH} # Update as needed
+    depends_on:
+      - directus
+    volumes:
+      - ./nextjs-boilerplate/:/app
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  directus_boilerplate_db_data:
